@@ -15,7 +15,7 @@ SystemPulse adalah aplikasi menu bar macOS untuk memantau CPU, memori, jaringan,
 
 ## Kebutuhan
 
-- macOS 13 atau lebih baru.
+- macOS 14 atau lebih baru.
 - Xcode versi terbaru.
 
 ## Menjalankan proyek
