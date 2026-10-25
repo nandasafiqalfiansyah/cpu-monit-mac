@@ -1,0 +1,101 @@
+name: Build DMG
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-dmg:
+    name: Build & Package SystemPulse DMG
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    env:
+      PROJECT_PATH: cpu-monit-mac.xcodeproj
+      SCHEME_NAME: cpu-monit-mac
+      APP_NAME: SystemPulse
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect Release Version from Commit or Tag
+        id: version
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          REF_NAME: ${{ github.ref }}
+        run: |
+          TAG=""
+          if [[ "$REF_NAME" == refs/tags/v* ]]; then
+            TAG="${REF_NAME#refs/tags/}"
+          else
+            TAG=$(echo "$COMMIT_MSG" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' | head -n 1 || true)
+          fi
+
+          if [[ -n "$TAG" ]]; then
+            echo "Detected release version: $TAG"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release version found in commit message or tag."
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Release App
+        run: |
+          xcodebuild build \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -destination "platform=macOS" \
+            -derivedDataPath build/DerivedData \
+            MACOSX_DEPLOYMENT_TARGET=13.0 \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Ad-hoc Sign & Create DMG
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/${APP_NAME}.app"
+          STAGING_DIR="build/dmg-staging"
+          DMG_PATH="build/${APP_NAME}.dmg"
+
+          codesign --force --deep --sign - "$APP_PATH"
+
+          rm -rf "$STAGING_DIR" "$DMG_PATH"
+          mkdir -p "$STAGING_DIR"
+          ditto "$APP_PATH" "$STAGING_DIR/${APP_NAME}.app"
+          ln -s /Applications "$STAGING_DIR/Applications"
+
+          hdiutil create \
+            -volname "$APP_NAME" \
+            -srcfolder "$STAGING_DIR" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-dmg
+          path: build/${{ env.APP_NAME }}.dmg
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: steps.version.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: SystemPulse ${{ steps.version.outputs.tag }}
+          files: build/${{ env.APP_NAME }}.dmg
+          generate_release_notes: true

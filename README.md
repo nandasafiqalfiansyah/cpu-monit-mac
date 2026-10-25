@@ -21,15 +21,15 @@ SystemPulse adalah aplikasi menu bar macOS untuk memantau CPU, memori, jaringan,
 ## Menjalankan proyek
 
 1. Clone repository ini.
-2. Buka `Untitled Project.xcodeproj` di Xcode.
-3. Pilih target **MyApp** dan run destination **My Mac**.
+2. Buka `cpu-monit-mac.xcodeproj` di Xcode.
+3. Pilih target **cpu-monit-mac** dan run destination **My Mac**.
 4. Tekan `⌘R`.
 5. Klik ikon SystemPulse di menu bar untuk membuka monitor.
 
 ## Struktur proyek
 
 ```text
-MyApp/
+cpu-monit-mac/
 ├── Models/
 │   └── SystemMetrics.swift
 ├── Services/
@@ -46,23 +46,16 @@ MyApp/
 └── MyApp.swift
 ```
 
-## Membuat DMG
+## Build DMG & Release Otomatis (GitHub Actions)
 
-Skrip berikut membuat `SystemPulse.app` versi Release dan memasukkannya ke DMG dengan shortcut ke folder Applications:
+Proyek ini menggunakan GitHub Actions ([`.github/workflows/build-dmg.yml`](.github/workflows/build-dmg.yml)) untuk mem-build `SystemPulse.app` versi Release dan mengemasnya menjadi file `SystemPulse.dmg` secara otomatis:
 
-```zsh
-./Scripts/create-dmg.sh
-```
-
-Hasilnya tersedia di:
-
-```text
-build/release/SystemPulse.dmg
-```
+- **Otomatis Release dari Pesan Commit**: Cukup sertakan versi dengan format `vX.Y.Z` di dalam pesan commit saat push ke `main` (misalnya `git commit -m "v1.0.0"` atau `git commit -m "release v1.0.0"`), maka GitHub Actions akan otomatis membuat tag dan mempublikasikan **GitHub Release** beserta file `SystemPulse.dmg`.
+- **Commit Biasa (Tanpa Versi) / Pull Request / Manual Trigger**: Tetap mem-build dan mengunggah artifact `SystemPulse-dmg` di halaman **Actions** tanpa membuat Release baru.
 
 ## Distribusi
 
-DMG untuk penggunaan pribadi dapat dibuat langsung dari skrip di atas. Untuk membagikannya ke pengguna lain, konfigurasi **Developer ID Application** di Xcode, lalu lakukan notarization melalui Apple agar macOS tidak menampilkan peringatan Gatekeeper.
+Untuk distribusi ke pengguna lain tanpa peringatan Gatekeeper macOS, konfigurasi sertifikat **Developer ID Application** dan lakukan notarization melalui Apple.
 
 ## Catatan metrik
 
